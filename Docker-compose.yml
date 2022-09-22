@@ -1,0 +1,95 @@
+version: "3"
+services:
+  db:
+    # We use a mariadb image which supports both amd64 & arm64 architecture
+    image: mariadb:latest ## maria is better than sql i think
+    # If you really want to use MySQL, uncomment the following line
+    #image: mysql:8.0.27
+    ##command: '--default-authentication-plugin=mysql_native_password' ## investigate
+    volumes:
+     ## - ./db_data:/docker-entrypoint-initdb.d ## link our local db dump to docker.
+        - db_data:/var/lib/mysql  ## regular DB 
+    restart: always ## container dies restart it
+    environment: ## maria/mysql variables can see docker documentation to get more
+      - MYSQL_ROOT_PASSWORD=somewordpress
+      - MYSQL_DATABASE=wordpress
+      - MYSQL_USER=wordpress
+      - MYSQL_PASSWORD=wordpress
+    healthcheck: # for debugging
+      test: ["CMD-SHELL", 'mysqladmin ping']
+      interval: 10s
+      timeout: 2s
+      retries: 10
+  wordpress:
+    image: wordpress:latest ## get the latest version of wordpress
+    ports:
+      - 80:80 ## expose our port 80 to dockers port 80
+    volumes:
+      - ./:/var/www/html ## symlink our wordpress environment between docker and our pc
+    restart: always
+    environment: ## wordpress variables see here:
+      - WORDPRESS_DB_HOST=db
+      - WORDPRESS_DB_USER=wordpress
+      - WORDPRESS_DB_PASSWORD=wordpress
+      - WORDPRESS_DB_NAME=wordpress
+    healthcheck: # for debugging
+      test: ["CMD-SHELL", 'wordpress ping']
+      interval: 10s
+      timeout: 2s
+      retries: 10
+  wpcli:
+    image: wordpress:cli
+    volumes_from:
+      - wordpress
+    environment: ## wordpress variables see here:
+      - WORDPRESS_DB_HOST=db
+      - WORDPRESS_DB_USER=wordpress
+      - WORDPRESS_DB_PASSWORD=wordpress
+      - WORDPRESS_DB_NAME=wordpress
+    entrypoint: wp  
+    command: "--info" ## test our wpcli
+volumes:
+  db_data: {}
+
+#WSL Commands
+# get versions -> wsl -l -v
+# set version -> wsl --set-version
+
+#WPCLI NOTES
+#USE: docker-compose run --rm wpcli <some wp command>
+#EG: docker-compose run --rm wpcli plugin list
+
+#Search and Replace
+#docker-compose run --rm wpcli search-replace "string1" "string2" --precise --recurse-objects --all-tables-with-prefix
+
+
+#Docker commands
+# Find Containers -> Docker PS -a
+# Go Into Container -> docker exec -it 105f870eaf0e bash
+
+#Linux/MariaDB/MYSQL commands
+# Get Database password -> echo $MYSQL_ROOT_PASSWORD  
+# Log into Database ->  mysql -u root -p
+
+
+#Database dump
+#mysqldump -u username -p dbname > ~/filename. sql
+#EG:mysqldump -u root -p wordpress > ~/data-dump.sql
+
+#COPY DB/file from a container to our machine
+#docker cp <containerId>:/file/path/within/container /host/path/target
+#EG: docker cp 105f870eaf0e:data-dump.sql .
+
+
+#MYSQL Commands
+#show databases;
+#use wordpress;
+
+#Replace Assets
+#rsync in 
+#or ssh
+
+
+
+##Fixing root password
+#https://stackoverflow.com/questions/63051535/access-denied-for-user-rootlocalhost-in-the-mysql-docker
